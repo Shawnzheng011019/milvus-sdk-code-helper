@@ -109,7 +109,7 @@ uv run src/mcp_pymilvus_code_generate_helper/stdio_server.py
 Here’s an additional instruction you can add for users to improve tool invocation accuracy in Cursor:
 To ensure more accurate tool invocation when using Cursor, you can set a User Rule as follows:
 
-Go to `Cursor` > `Preferences` > `Cursor Settings` > `Rules`, and add the following to your User Rule. Here is an example user rule that has proven effective for your reference:
+Go to `Cursor` > `Cursor Settings` > `Rules`, and add the following to your User Rule. Here is an example user rule that has proven effective for your reference:
 
 ````
 # !!!Always use tools for milvus code generation, conversion, and translation tasks **in the order of priority below**.  
@@ -230,18 +230,27 @@ Feel free to adjust or add more rules as needed for your workflow.
 The server provides the following tools:
 
 - `milvus-pypmilvus-code-generator`: Find related pymilvus code/documents to help generating code from user input in natural language
+  
   - Parameters:
     - `query`: User query for generating code
-
+  
+  ![tool1](./assets/gif/tool1.gif)
+  
 - `milvus-orm-client-code-convertor`: Find related orm and pymilvus client code/documents to help converting orm code to pymilvus client (or vice versa)
+  
   - Parameters:
     - `query`: A string of Milvus API names in list format from user query and code context to translate between orm and milvus client
-
+  
+  ![tool2](./assets/gif/tool2.gif)
+  
 - `milvus-code-translator`: Find related documents and code snippets in different programming languages for milvus code translation
+
 - Parameters:
     - `query`: A string of Milvus API names in list format to translate from one programming language to another (e.g., ['create_collection', 'insert', 'search'])
     - `source_language`: Source programming language (e.g., 'python', 'java', 'go', 'csharp', 'node', 'restful')
     - `target_language`: Target programming language (e.g., 'python', 'java', 'go', 'csharp', 'node', 'restful')
+    
+    ![tool3](./assets/gif/tool3.gif)
 
 > ⚠️ Note: You don't need to specify the tool name or parameters in the query. Just interact as you normally would when coding with LLM: state your requirements and select the relevant code context. MCP will automatically select the appropriate tool based on the query content and prepare corresponding parameters.
 
