@@ -135,7 +135,7 @@ class MCPClient:
 
 async def main():
     client = MCPClient(
-        server_script_path="/Users/zilliz/Documents/GitHub/mcp-pymilvus-code-generator/src/mcp_pymilvus_code_generate_helper/stdio_server.py"
+        server_script_path="../../mcp_pymilvus_code_generate_helper/stdio_server.py"
     )
 
     try:
