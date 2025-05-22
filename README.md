@@ -233,14 +233,12 @@ The server provides the following tools:
   
   - Parameters:
     - `query`: User query for generating code
-  
   ![tool1](./assets/gif/tool1.gif)
   
 - `milvus-orm-client-code-convertor`: Find related orm and pymilvus client code/documents to help converting orm code to pymilvus client (or vice versa)
   
   - Parameters:
     - `query`: A string of Milvus API names in list format from user query and code context to translate between orm and milvus client
-  
   ![tool2](./assets/gif/tool2.gif)
   
 - `milvus-code-translator`: Find related documents and code snippets in different programming languages for milvus code translation
@@ -249,8 +247,7 @@ The server provides the following tools:
     - `query`: A string of Milvus API names in list format to translate from one programming language to another (e.g., ['create_collection', 'insert', 'search'])
     - `source_language`: Source programming language (e.g., 'python', 'java', 'go', 'csharp', 'node', 'restful')
     - `target_language`: Target programming language (e.g., 'python', 'java', 'go', 'csharp', 'node', 'restful')
-    
-    ![tool3](./assets/gif/tool3.gif)
+  ![tool3](./assets/gif/tool3.gif)
 
 > ⚠️ Note: You don't need to specify the tool name or parameters in the query. Just interact as you normally would when coding with LLM: state your requirements and select the relevant code context. MCP will automatically select the appropriate tool based on the query content and prepare corresponding parameters.
 
