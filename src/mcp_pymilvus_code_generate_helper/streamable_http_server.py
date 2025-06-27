@@ -1,5 +1,7 @@
 import argparse
+import contextlib
 import logging
+from collections.abc import AsyncIterator
 from typing import Any, Sequence
 
 import uvicorn
@@ -9,7 +11,7 @@ from mcp.types import EmbeddedResource, ImageContent, TextContent, Tool
 from milvus_connector import MilvusConnector
 from starlette.applications import Starlette
 from starlette.routing import Mount
-from starlette.types import Scope, Receive, Send
+from starlette.types import Receive, Scope, Send
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("streamable-http-mcp-pymilvus-code-generate-helper-server")
@@ -24,16 +26,21 @@ class McpServer(MilvusConnector):
         stateless_http: bool = False,
         enable_auto_update=False,
         update_interval_minutes=60,
+        repo_url="https://github.com/milvus-io/web-content.git",
+        local_repo_path="./web-content",
+        repo_branch="master"
     ):
         super().__init__(
-            milvus_uri=milvus_uri, 
-            milvus_token=milvus_token, 
+            milvus_uri=milvus_uri,
+            milvus_token=milvus_token,
             db_name=db_name,
             enable_auto_update=enable_auto_update,
-            update_interval_minutes=update_interval_minutes
+            update_interval_minutes=update_interval_minutes,
+            repo_url=repo_url,
+            local_repo_path=local_repo_path
         )
         self.stateless_http = stateless_http
-        
+
         # Create MCP server
         self.app = Server("mcp-pymilvus-code-generator-server")
         self.setup_tools()
@@ -115,42 +122,71 @@ class McpServer(MilvusConnector):
                     query, source_language, target_language
                 )
                 return [TextContent(type="text", text=code)]
+            else:
+                return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
 
 def create_app(
-    milvus_uri="http://localhost:19530", 
-    milvus_token="", 
-    db_name="default", 
+    milvus_uri="http://localhost:19530",
+    milvus_token="",
+    db_name="default",
     stateless_http: bool = False,
     enable_auto_update=False,
     update_interval_minutes=60,
+    repo_url="https://github.com/milvus-io/web-content.git",
+    local_repo_path="./web-content",
+    repo_branch="master"
 ) -> Starlette:
-    """Create a Starlette app with streamable HTTP transport."""
+    """Create a Starlette app with StreamableHTTP transport for MCP."""
     server = McpServer(
-        milvus_uri=milvus_uri, 
-        milvus_token=milvus_token, 
+        milvus_uri=milvus_uri,
+        milvus_token=milvus_token,
         db_name=db_name,
         stateless_http=stateless_http,
         enable_auto_update=enable_auto_update,
         update_interval_minutes=update_interval_minutes,
+        repo_url=repo_url,
+        local_repo_path=local_repo_path,
+        repo_branch=repo_branch
     )
-    
-    # Create session manager with stateless_http parameter
+
+    # Create session manager for StreamableHTTP transport
     session_manager = StreamableHTTPSessionManager(
         app=server.app,
-        stateless=stateless_http  # Use the stateless_http parameter
+        event_store=None,  # Can be configured for resumability
+        json_response=False,  # Use SSE streaming by default
+        stateless=stateless_http,
     )
-    
-    # Create ASGI handler for streamable HTTP
+
+    # ASGI handler for streamable HTTP connections
     async def handle_streamable_http(scope: Scope, receive: Receive, send: Send) -> None:
         await session_manager.handle_request(scope, receive, send)
-    
-    # Create routes
-    routes = [
-        Mount("/mcp", app=handle_streamable_http)
-    ]
 
-    app = Starlette(routes=routes)
+    # Lifespan context manager for proper startup/shutdown
+    @contextlib.asynccontextmanager
+    async def lifespan(app: Starlette) -> AsyncIterator[None]:
+        """Context manager for managing session manager lifecycle."""
+        async with session_manager.run():
+            logger.info("Application started with StreamableHTTP session manager!")
+            if enable_auto_update:
+                logger.info("Starting auto-updater...")
+                await server.start_auto_updater()
+            try:
+                yield
+            finally:
+                logger.info("Application shutting down...")
+                if enable_auto_update:
+                    logger.info("Stopping auto-updater...")
+                    await server.stop_auto_updater()
+
+    # Create Starlette app with StreamableHTTP transport
+    app = Starlette(
+        debug=True,
+        routes=[
+            Mount("/mcp", app=handle_streamable_http),
+        ],
+        lifespan=lifespan,
+    )
     return app
 
 
@@ -176,8 +212,8 @@ if __name__ == "__main__":
         help="Disable automatic document updates"
     )
     parser.add_argument(
-        "--update_interval", 
-        type=int, 
+        "--update_interval",
+        type=int,
         default=60,
         help="Document update interval in minutes (default: 60)"
     )
@@ -185,19 +221,19 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     app = create_app(
-        milvus_uri=args.milvus_uri, 
-        milvus_token=args.milvus_token, 
+        milvus_uri=args.milvus_uri,
+        milvus_token=args.milvus_token,
         db_name=args.db_name,
         stateless_http=args.stateless_http,
         enable_auto_update=not args.disable_auto_update,
         update_interval_minutes=args.update_interval
     )
-    
+
     logger.info(f"Starting streamable HTTP server on {args.host}:{args.port}")
     logger.info(f"Stateless HTTP mode: {args.stateless_http}")
     logger.info(f"Auto-update enabled: {not args.disable_auto_update}")
     if not args.disable_auto_update:
         logger.info(f"Update interval: {args.update_interval} minutes")
-    logger.info(f"MCP endpoint available at: http://{args.host}:{args.port}/mcp")
+    logger.info(f"MCP StreamableHTTP endpoint available at: http://{args.host}:{args.port}/mcp")
     
     uvicorn.run(app, host=args.host, port=args.port)

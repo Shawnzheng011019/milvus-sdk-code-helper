@@ -17,6 +17,7 @@ dependencies = [
     "tiktoken>=0.9.0",
     "unstructured>=0.16.25",
     "uvicorn>=0.34.0",
+    "fastmcp>=2.9.0",
 ]
 
 [project.optional-dependencies]
@@ -108,3 +109,6 @@ docstring-code-format = false
 # This only has an effect when the `docstring-code-format` setting is
 # enabled.
 docstring-code-line-length = "dynamic"
+
+[project.scripts]
+pymilvus-helper = "mcp_pymilvus_code_generate_helper.fastmcp_server:main"
