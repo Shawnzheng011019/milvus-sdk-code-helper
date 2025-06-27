@@ -130,7 +130,7 @@ def main():
     )
     parser.add_argument("--milvus_token", type=str, default="", help="Milvus server token")
     parser.add_argument("--db_name", type=str, default="default", help="Milvus database name")
-    parser.add_argument("--host", type=str, default="127.0.0.1", help="Host for http/sse transport")
+    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host for http/sse transport")
     parser.add_argument("--port", type=int, default=8000, help="Port for http/sse transport")
     parser.add_argument("--path", type=str, default="/mcp", help="Path for http transport")
     parser.add_argument("--transport", type=str, default="http", choices=["stdio", "http", "sse"], help="Transport protocol (default: http)")
