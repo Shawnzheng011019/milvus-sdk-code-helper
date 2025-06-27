@@ -112,7 +112,7 @@ def create_app(
            - Use for translating Milvus code between different programming languages.
            - Only use if the target language is not Python.
 
-        Always follow this priority order and trigger conditions when selecting tools for Milvus-related code tasks.
+        Always follow these trigger conditions when selecting tools for Milvus-related code tasks.
         """
         return prompt
     

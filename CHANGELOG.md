@@ -5,6 +5,7 @@
 - Introduced detailed logging: git clone and embedding stages now stream to both stdout and time-stamped files under `./logs/`. This uses a dual-handler `logging.basicConfig` and captures stdout/stderr from embedding scripts.
 - Added `fastmcp` runtime dependency and CLI entry point `pymilvus-helper` via `project.scripts` in `pyproject.toml`.
 - Dockerfile: Added support for injecting `OPENAI_API_KEY` via build argument and runtime environment variable.
+- Added `examples/fastmcp_server.py`: lightweight FastMCP server variant that skips document synchronization and the weekly scheduler for faster startup when Milvus collections already exist.
 
 ### Changed
 - `fastmcp_server.py` now runs `update_documents()` once during startup and launches the weekly scheduler; removed all async `DocumentAutoUpdater` logic and command-line flags `--enable_auto_update`, `--update_interval`.
