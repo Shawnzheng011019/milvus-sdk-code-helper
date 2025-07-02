@@ -133,6 +133,7 @@ def create_app(
         
         Trigger: Use this tool if the request contains keywords like 'generate', 'sample code', 'how to write' and mentions 'pymilvus' or 'milvus'.
         Do NOT use for ORM conversion or language translation tasks.
+        If the request contains keywords like 'translate' or 'convert' or 'to client' or 'to orm', do not use this tool.
         
         Args:
             query: User query for generating code
@@ -193,99 +194,98 @@ def create_app(
     @app.prompt
     def tool_selection_guidance(user_input: str) -> str:  # noqa: D401
         prompt = """
-        # !!!Always use tools for milvus code generation, conversion, and translation tasks **in the order of priority below**.  
+### Tool Selection Prompt
 
-#### 1. **Milvus Code Generation (Highest Priority)**  
-- **Trigger**:  
-  - Request contains **`generate`** **OR** **`sample code`** **OR** **`how to write`** **AND** **`pymilvus`/`milvus`**.  
-  - **Exclude** requests with explicit language translation keywords (e.g., `to java`, `nodejs`).  
-- **Action**:  
-  - Call `milvus_pypmilvus_code_generate_helper` with `query` = user's request.  
+#### 1. Tool Functions & Keyword Conditions
 
-#### 2. **Milvus Client ↔ ORM Code Conversion (Medium Priority)**  
-- **Trigger**:  
-  - Request contains **`orm`** **AND** (`convert`/`translate`/`to client`/`to orm`).  
-  - **Exclude** requests with explicit programming language names (e.g., `java`, `python`).  
-- **Action**:  
-  - Call `milvus_orm_client_code_convert_helper` with `query`.  
+**milvus\_code\_translator** (for language conversion):
 
-#### 3. **Milvus Code Translation Between Languages (Lowest Priority)**  
-- **Trigger**:  
-  - Request contains **`translate`** **AND** a **programming language different from the first programming language in the request**.  
-  - **Must include** both `source_language` and `target_language`.  
-- **Action**:  
-  - Call `milvus_code_translate_helper` with `query`, `source_language`, and `target_language`.  
+* **Trigger** when the request includes:
 
-#### **Critical Exclusion Rules**  
-1. **Do not call Tool 1 (`code generation`) if** the request mentioned keyword `translate` or `convert` or `to client` or `to orm`.  
-2. **Do not call Tool 3 (`translation`) if** the request does not mention a **non-Python language** (e.g., only `pymilvus`/`python` is present).  
-3. **Priority Enforcement**:  
-  - If a request matches **both Tool 1 and Tool 3** (e.g., "Generate code to java"), **force-trigger Tool 1** (code generation takes precedence over translation).  
-4. **Parameter Validation for Tool 3**:  
-  - If `target_language` is missing, **do not call Tool 3**; instead, use fallback to ask:  
-    *"Please specify the target programming language (e.g., 'to java' or 'to nodejs')"*.  
+  * Translation keywords: `translate`, `port`, `migrate`
+  * A clear source-to-target language pair, formatted as `from [source_lang] to [target_lang]` or explicit language names in context
 
-#### **Fallback Rule**  
-- **When to Use**:  
-  - Request does not match any tool's trigger (e.g., "How does Milvus indexing work?").  
-  - Tool 3 is triggered but missing `target_language`.  
-- **Response**:  
-  *"Please clarify your request:  
-  1. Code Generation (e.g., 'Generate pymilvus code for search')  
-  2. ORM/Client Conversion (e.g., 'Convert orm to pymilvus')  
-  3. Language Translation (e.g., 'Translate to java')"*  
+**orm\_client\_code\_convertor** (for style conversion):
 
-If you meet the milvus code translation between different programming language task or convert between orm and milvus client, you must identify all API calls of the selected codes related to the Milvus SDK. The "query" argument should be a list of API call descriptions.
+* **Trigger** when the request includes:
 
-Here is the examples:
-Example 1
-Context:
-```
-from pymilvus import MilvusClient, DataType
+  * ORM/client-related keywords: `ORM`, `client`, `SQLAlchemy`, `Django ORM`
+  * Style-related keywords: `style`, `format`, `convention`, `PEP8`, `naming`, `indentation`, `adapt style`
 
-CLUSTER_ENDPOINT = "http://localhost:19530"
-TOKEN = "root:Milvus"
+**milvus\_code\_generator** (for code creation):
 
-# 1. Set up a Milvus client
-client = MilvusClient(
-    uri=CLUSTER_ENDPOINT,
-    token=TOKEN 
-)
+* **Trigger** when the request includes:
 
-# 2. Create a collection in quick setup mode
-client.create_collection(
-    collection_name="quick_setup",
-    dimension=5
-)
+  * Code generation keywords: `generate`, `create`, `build`, `design`, `construct`, `new module`, `from scratch`
+  * No language/style conversion keywords
 
-res = client.get_load_state(
-    collection_name="quick_setup"
-)
+#### 2. Step-by-Step Decision Logic
 
-print(res)
-```
-Parsed arguments of tool using:
-["create_collection", "get_load_state"]
+1. **Check for language translation first**:
 
-Example 2
-Context:
-```
-from pymilvus import MilvusClient
+   * If the request contains **both**:
 
-client = MilvusClient(uri="http://localhost:19530", token="root:Milvus")
+     * A translation keyword: `translate`, `port`, `migrate`
+     * A source-to-target language pair (e.g., `from Python to Java`)
+   * **Use** `milvus_code_translator`
+   * **Exit** the decision process
 
-if not client.has_collection("my_collection"):
-    client.create_collection(collection_name="my_collection", dimension=128)
+2. **Check for style conversion next**:
 
-client.insert(
-    collection_name="my_collection",
-    data=[{"vector": [0.1, 0.2, 0.3, 0.4, 0.5]}]
-)
+   * If the request contains:
 
-client.flush(["my_collection"])
-```
-Parsed arguments of tool using:
-["has_collection", "create_collection", "insert", "flush"]
+     * ORM/client-related keywords: `ORM`, `client`, `SQLAlchemy`, `Django ORM`
+     * Style-related keywords: `style`, `format`, `PEP8`, `naming`, `indentation`, `adapt style`
+   * **Use** `orm_client_code_convertor`
+   * **Exit** the decision process
+
+3. **Default to code generation**:
+
+   * If the request contains:
+
+     * Code generation keywords: `generate`, `create`, `build`, `design`, `construct`, `new module`, `from scratch`
+   * **Use** `milvus_code_generator`
+
+#### 3. Critical Rules & Exceptions
+
+* **Language translation requires both languages**:
+
+  * Invalid: "Translate Milvus code" (missing source/target)
+  * Valid: "Translate Milvus from Python to JavaScript"
+
+* **Style conversion requires ORM/client context**:
+
+  * Invalid: "Convert code to PEP8" (no ORM/client)
+  * Valid: "Convert Milvus ORM client to PEP8"
+
+* **Priority rule**:
+
+  * For requests combining translation and style (e.g., "Translate Java to Python and adapt to Flask style"), **use** `milvus_code_translator` first
+
+#### 4. Anti-Error Mechanisms
+
+* **Mandatory Language Pair for Translation**:
+
+  * Invalid (will block translation): "Translate Milvus code to Python" (missing source language)
+  * Valid: "Translate Milvus Java code to Python" (source=Java, target=Python)
+
+* **Keyword Priority Hierarchy**:
+
+  * `translate + language pair` > `ORM/client + style` > `generate/create`
+
+#### 5. Keyword Lists
+
+* **milvus\_code\_translator**:
+
+  * Keywords: `translate`, `from Python`, `to C#`, `language conversion`, `rewrite in Java`
+
+* **orm\_client\_code\_convertor**:
+
+  * Keywords: `ORM`, `client`, `Django ORM style`
+
+* **Generate trigger**:
+
+  * Keywords: `generate`, `create new`, `build`, `design from scratch` (only valid when no translation/language pair)
         """
         return prompt
 

@@ -13,6 +13,8 @@
 - `doc_updater.update_documents()` now purges leftover embedding CSV files (`embeddings_temp.csv`, `MilvusClient_embeddings.csv`, `multi_language_docs_with_embedding.csv`, `ORM_embeddings.csv`, `userGuide_embeddings.csv`) before cloning the documentation repository to guarantee a clean state for each run.
 - Rewritten `Dockerfile` to install dependencies using `uv.lock`, copy static assets, expose port `8000`, and improve layer caching.
 - Codebase formatting and linting cleanup: reorganized imports, removed unused imports, fixed duplicate imports, corrected f-string placeholder, and added `# noqa: E402` where dynamic path tweaks precede imports to ensure Ruff passes with no errors.
+- `examples/fastmcp_server.py` now embeds its own `create_app` implementation and no longer depends on `mcp_pymilvus_code_generate_helper.fastmcp_server`.
+- `examples/fastmcp_server.py` tool definitions (docstrings & guidance prompt) are now **identical** to those in `src/mcp_pymilvus_code_generate_helper/fastmcp_server.py` to ensure consistent behavior.
 
 ### Removed
 - Deprecated async `DocumentAutoUpdater`

@@ -95,24 +95,98 @@ def create_app(
     @app.prompt
     def tool_selection_guidance(user_input: str) -> str:
         prompt = """
-        Tool selection priority for Milvus code tasks:
+### Tool Selection Prompt
 
-        1. Milvus Code Generation:
-           - Trigger: Request contains keywords like 'generate', 'sample code', 'how to write' and mentions 'pymilvus' or 'milvus'.
-           - Use for generating or writing pymilvus/milvus code.
-           - Do not use for language translation or ORM conversion.
+#### 1. Tool Functions & Keyword Conditions
 
-        2. Milvus Client ↔ ORM Code Conversion:
-           - Trigger: Request contains 'orm' and any of 'convert', 'translate', 'to client', or 'to orm'.
-           - Use for converting or translating between ORM and client code.
-           - Do not use for general code generation or language translation.
+**milvus\_code\_translator** (for language conversion):
 
-        3. Milvus Code Translation Between Languages:
-           - Trigger: Request contains 'translate to' and a non-Python programming language (e.g., 'java', 'nodejs', 'go'), with both source and target languages specified.
-           - Use for translating Milvus code between different programming languages.
-           - Only use if the target language is not Python.
+* **Trigger** when the request includes:
 
-        Always follow these trigger conditions when selecting tools for Milvus-related code tasks.
+  * Translation keywords: `translate`, `port`, `migrate`
+  * A clear source-to-target language pair, formatted as `from [source_lang] to [target_lang]` or explicit language names in context
+
+**orm\_client\_code\_convertor** (for style conversion):
+
+* **Trigger** when the request includes:
+
+  * ORM/client-related keywords: `ORM`, `client`, `SQLAlchemy`, `Django ORM`
+  * Style-related keywords: `style`, `format`, `convention`, `PEP8`, `naming`, `indentation`, `adapt style`
+
+**milvus\_code\_generator** (for code creation):
+
+* **Trigger** when the request includes:
+
+  * Code generation keywords: `generate`, `create`, `build`, `design`, `construct`, `new module`, `from scratch`
+  * No language/style conversion keywords
+
+#### 2. Step-by-Step Decision Logic
+
+1. **Check for language translation first**:
+
+   * If the request contains **both**:
+
+     * A translation keyword: `translate`, `port`, `migrate`
+     * A source-to-target language pair (e.g., `from Python to Java`)
+   * **Use** `milvus_code_translator`
+   * **Exit** the decision process
+
+2. **Check for style conversion next**:
+
+   * If the request contains:
+
+     * ORM/client-related keywords: `ORM`, `client`, `SQLAlchemy`, `Django ORM`
+     * Style-related keywords: `style`, `format`, `PEP8`, `naming`, `indentation`, `adapt style`
+   * **Use** `orm_client_code_convertor`
+   * **Exit** the decision process
+
+3. **Default to code generation**:
+
+   * If the request contains:
+
+     * Code generation keywords: `generate`, `create`, `build`, `design`, `construct`, `new module`, `from scratch`
+   * **Use** `milvus_code_generator`
+
+#### 3. Critical Rules & Exceptions
+
+* **Language translation requires both languages**:
+
+  * Invalid: "Translate Milvus code" (missing source/target)
+  * Valid: "Translate Milvus from Python to JavaScript"
+
+* **Style conversion requires ORM/client context**:
+
+  * Invalid: "Convert code to PEP8" (no ORM/client)
+  * Valid: "Convert Milvus ORM client to PEP8"
+
+* **Priority rule**:
+
+  * For requests combining translation and style (e.g., "Translate Java to Python and adapt to Flask style"), **use** `milvus_code_translator` first
+
+#### 4. Anti-Error Mechanisms
+
+* **Mandatory Language Pair for Translation**:
+
+  * Invalid (will block translation): "Translate Milvus code to Python" (missing source language)
+  * Valid: "Translate Milvus Java code to Python" (source=Java, target=Python)
+
+* **Keyword Priority Hierarchy**:
+
+  * `translate + language pair` > `ORM/client + style` > `generate/create`
+
+#### 5. Keyword Lists
+
+* **milvus\_code\_translator**:
+
+  * Keywords: `translate`, `from Python`, `to C#`, `language conversion`, `rewrite in Java`
+
+* **orm\_client\_code\_convertor**:
+
+  * Keywords: `ORM`, `client`, `Django ORM style`
+
+* **Generate trigger**:
+
+  * Keywords: `generate`, `create new`, `build`, `design from scratch` (only valid when no translation/language pair)
         """
         return prompt
     
