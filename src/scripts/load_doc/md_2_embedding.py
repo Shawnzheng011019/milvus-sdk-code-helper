@@ -1,6 +1,21 @@
 import os
 import pandas as pd
 from openai import OpenAI
+import sys
+from pathlib import Path
+
+# Add the parent directory to import the retry decorator
+sys.path.append(str(Path(__file__).parent.parent.parent / "mcp_pymilvus_code_generate_helper"))
+from retry_decorator import openai_retry
+
+@openai_retry
+def _create_embedding_with_retry(client, content):
+    """
+    Create embedding with retry logic for a single piece of content.
+    """
+    response = client.embeddings.create(model="text-embedding-3-small", input=content)
+    return response.data[0].embedding
+
 
 def generate_embeddings(docs_dir_path, save_file_name):
     """
@@ -38,8 +53,7 @@ def generate_embeddings(docs_dir_path, save_file_name):
 
         try:
             print("Generating embedding...")
-            response = client.embeddings.create(model="text-embedding-3-small", input=content)
-            embedding = response.data[0].embedding
+            embedding = _create_embedding_with_retry(client, content)
             print(f"Generation successful! Embedding dimension: {len(embedding)}")
 
             df.loc[len(df)] = {
@@ -59,7 +73,7 @@ def generate_embeddings(docs_dir_path, save_file_name):
                 )
 
         except Exception as e:
-            print(f"Failed to generate embedding: {e}")
+            print(f"Failed to generate embedding after all retries: {e}")
 
     print("All documents process finished.")
 

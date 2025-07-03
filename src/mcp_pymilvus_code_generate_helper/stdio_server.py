@@ -70,7 +70,7 @@ def main():
                     "properties": {
                         "query": {
                             "type": "string",
-                            "description": "A string of Milvus API names in list format to translate from one programming language to another (e.g., ['create_collection', 'insert', 'search'])",
+                            "description": "A string of Milvus API names in list format to translate from one programming language to another. CRITICAL: Must use escaped double quotes format like [\"create_collection\", \"create_index\", \"insert\", \"search\", \"hybrid_search\"]. Do NOT use single quotes or unescaped format.",
                         },
                         "source_language": {
                             "type": "string",

@@ -82,7 +82,7 @@ def create_app(
         Do NOT use for general code generation or ORM conversion tasks.
         
         Args:
-            query: A string of Milvus API names in list format to translate from one programming language to another (e.g., ['create_collection', 'insert', 'search'])
+            query: A string of Milvus API names in list format to translate from one programming language to another. CRITICAL: Must use escaped double quotes format like [\"create_collection\", \"create_index\", \"insert\", \"search\", \"hybrid_search\"]. Do NOT use single quotes or unescaped format.
             source_language: Source programming language (e.g., 'python', 'java', 'go', 'csharp', 'node', 'restful')
             target_language: Target programming language (e.g., 'python', 'java', 'go', 'csharp', 'node', 'restful')
         Returns:
@@ -174,7 +174,22 @@ def create_app(
 
   * `translate + language pair` > `ORM/client + style` > `generate/create`
 
-#### 5. Keyword Lists
+#### 5. CRITICAL Query Format Requirements for milvus_code_translator
+
+**MANDATORY FORMAT**: When calling milvus_code_translator, the query parameter MUST use escaped double quotes format:
+
+* **CORRECT**: [\"create_collection\", \"create_index\", \"insert\", \"search\", \"hybrid_search\"]
+* **WRONG**: ["create_collection", "create_index", "insert", "search", "hybrid_search"]
+* **WRONG**: ['create_collection', 'create_index', 'insert', 'search', 'hybrid_search']
+
+**Format Examples**:
+* Single API: [\"create_collection\"]
+* Multiple APIs: [\"create_collection\", \"insert\", \"search\"]
+* Complex operations: [\"create_collection\", \"create_index\", \"insert\", \"search\", \"hybrid_search\", \"drop_collection\"]
+
+**Why This Matters**: The system uses ast.literal_eval() to parse the query string. Unescaped quotes will cause parsing failures and incorrect results.
+
+#### 6. Keyword Lists
 
 * **milvus\_code\_translator**:
 
@@ -211,12 +226,6 @@ def main():
     parser.add_argument("--stateless", action="store_true", default=True, help="Enable stateless HTTP/SSE mode (default: True)")
 
     args = parser.parse_args()
-
-    # Perform blocking first-time document preparation (steps 1-4)
-    try:
-        update_documents(args.milvus_uri, args.milvus_token)
-    except Exception as exc:
-        logger.error("Initial document update failed: %s", exc, exc_info=True)
 
     # Start weekly background scheduler (decoupled from FastMCP)
     start_weekly_scheduler(args.milvus_uri, args.milvus_token)

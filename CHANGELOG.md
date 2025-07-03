@@ -1,4 +1,31 @@
-## [Unreleased] - 2025-06-26
+## [Unreleased] - 2025-01-07
+### Changed
+- **Major README.md restructure**: Completely rewrote README.md to focus on FastMCP as the primary usage mode, removed User Rule section, and reorganized content structure.
+- **Enhanced FastMCP documentation**: Added comprehensive documentation for two distinct FastMCP server modes:
+  - First-time setup using `src/mcp_pymilvus_code_generate_helper/fastmcp_server.py` (with automatic document update)
+  - Subsequent runs using `examples/fastmcp_server.py` (lightweight mode without document sync)
+- **Improved configuration guidance**: Added detailed configuration examples for HTTP, SSE, and STDIO transport modes with both Cursor and Claude Desktop.
+- **Enhanced tool documentation**: Provided clear descriptions of all three tools with usage examples and parameter specifications.
+- **Added troubleshooting section**: Included common issues, debug mode instructions, and configuration troubleshooting.
+- **Updated Docker support**: Enhanced Docker documentation with FastMCP-specific examples and legacy transport mode support.
+
+### Removed
+- **User Rule section**: Removed the extensive User Rule configuration section from README.md as requested, simplifying the documentation.
+
+## [Previous] - 2025-01-07
+### Added
+- Implemented intelligent exponential backoff retry mechanism for OpenAI embedding API calls. Added `retry_decorator.py` with configurable retry logic including exponential backoff, jitter to prevent thundering herd effects, and differentiated handling of retryable vs non-retryable exceptions.
+- Applied smart retry decorator to all OpenAI embedding API calls across:
+  - `md_2_embedding.py`: Basic document embedding generation
+  - `process_multi_language_docs_2_vector_db.py`: Multi-language document processing  
+  - `milvus_connector.py`: Real-time query embedding generation
+- Retry configuration: 5 max retries, 2-second base delay, 120-second max delay, 20% jitter ratio for optimal network resilience.
+
+### Fixed
+- Removed duplicate document update execution during Docker container startup. Previously, the fastmcp_server.py would run update_documents() both synchronously at startup and immediately through the weekly scheduler, causing the documentation refresh pipeline to execute twice. Now only the scheduler-based update runs, eliminating redundant processing.
+- Enhanced network resilience for OpenAI API calls with smart retry mechanism to handle connection timeouts, network interruptions, and temporary service unavailability.
+
+## [2025-06-26]
 ### Added
 - Introduced `doc_updater.py`: synchronous pipeline that deletes previous `./web-content` repo, clones latest documentation, drops existing Milvus collections, embeds docs with OpenAI, and uploads them.
 - Introduced `scheduler.py`: light-weight weekly background thread executing the refresh pipeline, fully decoupled from FastMCP runtime.

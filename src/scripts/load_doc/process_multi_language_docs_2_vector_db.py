@@ -1,11 +1,17 @@
 import argparse
 import os
 from typing import Dict, List, Optional
+import sys
+from pathlib import Path
 
 import pandas as pd
 import tiktoken
 from openai import OpenAI
 from pymilvus import DataType, Function, FunctionType, MilvusClient
+
+# Add the parent directory to import the retry decorator
+sys.path.append(str(Path(__file__).parent.parent.parent / "mcp_pymilvus_code_generate_helper"))
+from retry_decorator import openai_retry
 
 
 class MultiLangDocsProcessor:
@@ -32,16 +38,21 @@ class MultiLangDocsProcessor:
             return self.encoding.decode(truncated_tokens)
         return content
 
+    @openai_retry
+    def _create_embedding_with_retry(self, content: str) -> List[float]:
+        """Create embedding with retry logic for a single piece of content."""
+        response = self.client.embeddings.create(
+            model="text-embedding-3-small", input=content
+        )
+        return response.data[0].embedding
+
     def generate_embedding(self, content: str) -> Optional[List[float]]:
         """Generate embedding for text"""
         try:
             truncated_content = self.truncate_content(content)
-            response = self.client.embeddings.create(
-                model="text-embedding-3-small", input=truncated_content
-            )
-            return response.data[0].embedding
+            return self._create_embedding_with_retry(truncated_content)
         except Exception as e:
-            print(f"Error generating embedding: {e}")
+            print(f"Error generating embedding after all retries: {e}")
             return None
 
     def normalize_filename(self, python_filename: str, target_lang: str) -> str:

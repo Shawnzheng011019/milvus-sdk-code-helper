@@ -4,6 +4,7 @@ import os
 
 from openai import OpenAI
 from pymilvus import AnnSearchRequest, MilvusClient, WeightedRanker
+from retry_decorator import openai_retry
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("milvus-connector")
@@ -32,15 +33,20 @@ class MilvusConnector:
         except Exception as e:
             logger.error(f"Fail to load collection: {e}")
 
+    @openai_retry
+    def _create_embedding_with_retry(self, text):
+        """Create embedding with retry logic for a single piece of text."""
+        response = self.openai_client.embeddings.create(
+            model="text-embedding-3-small", input=text
+        )
+        return response.data[0].embedding
+
     def create_embedding(self, text):
         try:
-            response = self.openai_client.embeddings.create(
-                model="text-embedding-3-small", input=text
-            )
-            embedding = response.data[0].embedding
+            embedding = self._create_embedding_with_retry(text)
             return embedding
         except Exception as e:
-            logger.error(f"Fail to create embedding from user query: {e}")
+            logger.error(f"Fail to create embedding from user query after all retries: {e}")
             return None
 
     def search_similar_documents(

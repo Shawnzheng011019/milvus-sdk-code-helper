@@ -13,24 +13,203 @@ Before using this MCP server, ensure you have:
 - A running [Milvus](https://milvus.io/) instance (local or remote)
 - [uv](https://github.com/astral-sh/uv) installed (recommended for running the server)
 
-## Usage
+## Quick Start with FastMCP
 
-The recommended way to use this MCP server is to run it directly with `uv` without installation. This is how both Claude Desktop and Cursor are configured to use it in the examples below. The server now support both sse and stdio:
+The recommended way to use this MCP server is through FastMCP, which provides better performance and easier configuration.
 
-### SSE
-#### Running the Server
-```shell
-uv run src/mcp_pymilvus_code_generate_helper/sse_server.py
-# mcp server will connect to local milvus server(http://localhost:19530) by default if no milvus_uri is provided
-# to connect to a remote milvus server, you can specify the milvus_uri like this:
-# uv run src/mcp_pymilvus_code_generate_helper/sse_server.py --milvus_uri http://<your-server-ip>:<your-server-port>
+### First Time Setup (with Document Update)
+
+For the first time running the server, use the main FastMCP server which will automatically update the document database:
+
+```bash
+uv run src/mcp_pymilvus_code_generate_helper/fastmcp_server.py
 ```
-#### Usage with Cursor
+
+This will:
+- Connect to your Milvus instance (default: http://localhost:19530)
+- Download and process the latest Milvus documentation
+- Start the MCP server with all three tools available
+
+#### Custom Configuration
+
+```bash
+# Connect to remote Milvus server
+uv run src/mcp_pymilvus_code_generate_helper/fastmcp_server.py --milvus_uri http://your-server:19530 --milvus_token your_token
+
+# Change server host and port
+uv run src/mcp_pymilvus_code_generate_helper/fastmcp_server.py --host 0.0.0.0 --port 8080
+
+# Use different transport (default is http)
+uv run src/mcp_pymilvus_code_generate_helper/fastmcp_server.py --transport sse
+```
+
+### Subsequent Runs (Lightweight Mode)
+
+After the initial setup, you can use the lightweight FastMCP server for faster startup:
+
+```bash
+uv run examples/fastmcp_server.py
+```
+
+This lightweight version:
+- Skips document synchronization
+- Starts immediately without background tasks
+- Assumes documents are already loaded in Milvus
+
+#### Lightweight Server Options
+
+```bash
+# Custom configuration for lightweight server
+uv run examples/fastmcp_server.py --milvus_uri http://your-server:19530 --host 0.0.0.0 --port 8080 --transport http
+```
+
+### Usage with Cursor
+
 1. Go to `Cursor` > `Settings` > `MCP`
 2. Click on the `+ Add New Global MCP Server` button
-3. Directly edit `mcp.json` as below:
+3. Configure based on your chosen mode:
 
+#### For HTTP Transport (Recommended)
 ```json
+{
+  "mcpServers": {
+    "pymilvus-code-generate-helper": {
+      "url": "http://localhost:8000/mcp"
+    }
+  }
+}
+```
+
+#### For SSE Transport
+```json
+{
+  "mcpServers": {
+    "pymilvus-code-generate-helper": {
+      "url": "http://localhost:8000"
+    }
+  }
+}
+```
+
+#### For STDIO Transport
+```json
+{
+  "mcpServers": {
+    "pymilvus-code-generate-helper": {
+      "command": "/PATH/TO/uv",
+      "args": [
+        "--directory",
+        "/path/to/mcp-pymilvus-code-generate-helper",
+        "run",
+        "examples/fastmcp_server.py",
+        "--transport",
+        "stdio",
+        "--milvus_uri",
+        "http://localhost:19530"
+      ],
+      "env": {
+        "OPENAI_API_KEY": "YOUR_OPENAI_API_KEY"
+      }
+    }
+  }
+}
+```
+
+### Usage with Claude Desktop
+
+1. Install Claude Desktop from https://claude.ai/download
+2. Open your Claude Desktop configuration:
+   - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+   - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+3. Add the following configuration:
+
+#### For HTTP Transport
+```json
+{
+  "mcpServers": {
+    "pymilvus-code-generate-helper": {
+      "url": "http://localhost:8000/mcp"
+    }
+  }
+}
+```
+
+#### For STDIO Transport
+```json
+{
+  "mcpServers": {
+    "pymilvus-code-generate-helper": {
+      "command": "/PATH/TO/uv",
+      "args": [
+        "--directory",
+        "/path/to/mcp-pymilvus-code-generate-helper",
+        "run",
+        "examples/fastmcp_server.py",
+        "--transport",
+        "stdio",
+        "--milvus_uri",
+        "http://localhost:19530"
+      ],
+      "env": {
+        "OPENAI_API_KEY": "YOUR_OPENAI_API_KEY"
+      }
+    }
+  }
+}
+```
+
+4. Restart Claude Desktop
+
+> ⚠️ **Note**: Remember to set the `OPENAI_API_KEY` environment variable when using STDIO transport.
+
+## Available Tools
+
+The server provides three powerful tools for Milvus code generation and translation:
+
+### 1. `milvus_code_generator`
+Generate or provide sample PyMilvus/Milvus code based on natural language input.
+
+- **When to use**: Code generation, sample code requests, "how to write" queries
+- **Parameters**: 
+  - `query`: Your natural language request for code generation
+- **Example**: "Generate pymilvus code for hybrid search"
+
+![tool1](./assets/gif/tool1.gif)
+
+### 2. `orm_client_code_convertor`
+Convert between ORM and PyMilvus client code formats.
+
+- **When to use**: Converting between ORM and client styles, format adaptation
+- **Parameters**:
+  - `query`: List of Milvus API names to convert (e.g., `["create_collection", "insert"]`)
+- **Example**: "Convert ORM code to PyMilvus client"
+
+![tool2](./assets/gif/tool2.gif)
+
+### 3. `milvus_code_translator`
+Translate Milvus code between different programming languages.
+
+- **When to use**: Cross-language code translation
+- **Parameters**:
+  - `query`: List of Milvus API names in escaped double quotes format (e.g., `[\"create_collection\", \"insert\", \"search\"]`)
+  - `source_language`: Source programming language (python, java, go, csharp, node, restful)
+  - `target_language`: Target programming language (python, java, go, csharp, node, restful)
+- **Example**: "Translate Python Milvus code to Java"
+
+![tool3](./assets/gif/tool3.gif)
+
+> ⚠️ **Important**: You don't need to specify tool names or parameters manually. Just describe your requirements naturally, and the MCP system will automatically select the appropriate tool and prepare the necessary parameters.
+
+## Legacy Transport Modes
+
+For backward compatibility, the server also supports SSE and STDIO transport modes:
+
+### SSE Transport
+```bash
+# Start SSE server
+uv run src/mcp_pymilvus_code_generate_helper/sse_server.py --milvus_uri http://localhost:19530
+
+# Cursor configuration for SSE
 {
   "mcpServers": {
     "pymilvus-code-generate-helper": {
@@ -40,234 +219,104 @@ uv run src/mcp_pymilvus_code_generate_helper/sse_server.py
 }
 ```
 
-#### Usage with Claude Desktop
-> ⚠️ Claude desktop is currently limited in its ability to connect to remote MCP servers
+### STDIO Transport
+```bash
+# Start STDIO server
+uv run src/mcp_pymilvus_code_generate_helper/stdio_server.py --milvus_uri http://localhost:19530
 
-### STDIO
-#### Running the Server
-```shell
-uv run src/mcp_pymilvus_code_generate_helper/stdio_server.py
-# mcp server will connect to local milvus server(http://localhost:19530) by default if no milvus_uri is provided
-# to connect to a remote milvus server, you can specify the milvus_uri like this:
-# uv run src/mcp_pymilvus_code_generate_helper/stdio_server.py --milvus_uri http://<your-server-ip>:<your-server-port>
-```
-#### Usage with Cursor
-1. Go to `Cursor` > `Settings` > `MCP`
-2. Click on the `+ Add New Global MCP Server` button
-3. Directly edit `mcp.json` as below:
-
-```json
+# Cursor configuration for STDIO
 {
   "mcpServers": {
     "pymilvus-code-generate-helper": {
       "command": "/PATH/TO/uv",
       "args": [
         "--directory",
-        "/path/to/mcp-pymilvus-code-generator",
+        "/path/to/mcp-pymilvus-code-generate-helper",
         "run",
         "src/mcp_pymilvus_code_generate_helper/stdio_server.py",
         "--milvus_uri",
         "http://localhost:19530"
       ],
       "env": {
-        "OPENAI_API_KEY": "YOUR OPENAI API KEY HERE"
+        "OPENAI_API_KEY": "YOUR_OPENAI_API_KEY"
       }
     }
   }
 }
 ```
 
-#### Usage with Claude Desktop
-1. Install Claude Desktop from https://claude.ai/download
-2. Open your Claude Desktop configuration:
-   - macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-3. Add the following configuration:
-```json
-{
-  "mcpServers": {
-    "pymilvus-code-generate-helper": {
-      "command": "/PATH/TO/uv",
-      "args": [
-        "--directory",
-        "/path/to/mcp-server-milvus/src/mcp_server_milvus",
-        "run",
-        "src/mcp_pymilvus_code_generate_helper/stdio_server.py",
-        "--milvus_uri",
-        "http://localhost:19530"
-      ], 
-      "env": {
-        "OPENAI_API_KEY": "YOUR OPENAI API KEY HERE"
-      }
-    }
-  }
-}
-```
-4. Restart Claude Desktop
-> ⚠️ Note: Remember to set the OPENAI_API_KEY environment variable
+## Docker Support
 
-## User Rule
-Here’s an additional instruction you can add for users to improve tool invocation accuracy in Cursor:
-To ensure more accurate tool invocation when using Cursor, you can set a User Rule as follows:
-
-Go to `Cursor` > `Cursor Settings` > `Rules`, and add the following to your User Rule. Here is an example user rule that has proven effective for your reference:
-
-````
-# !!!Always use tools for milvus code generation, conversion, and translation tasks **in the order of priority below**.  
-
-#### 1. **Milvus Code Generation (Highest Priority)**  
-- **Trigger**:  
-  - Request contains **`generate`** **OR** **`sample code`** **OR** **`how to write`** **AND** **`pymilvus`/`milvus`**.  
-  - **Exclude** requests with explicit language translation keywords (e.g., `to java`, `nodejs`).  
-- **Action**:  
-  - Call `milvus_pypmilvus_code_generate_helper` with `query` = user's request.  
-- **Example**:  
-  - "Generate pymilvus code for hybrid search" → **Must call this tool**  
-  - "Can you write a sample milvus code to list collections?" → **Must call this tool**  
-
-#### 2. **Milvus Client ↔ ORM Code Conversion (Medium Priority)**  
-- **Trigger**:  
-  - Request contains **`orm`** **AND** (`convert`/`translate`/`to client`/`to orm`).  
-  - **Exclude** requests with explicit programming language names (e.g., `java`, `python`).  
-- **Action**:  
-  - Call `milvus_orm_client_code_convert_helper` with `query` = list of API calls (e.g., `["create_collection", "insert"]`).  
-- **Example**:  
-  - "Translate ORM code to pymilvus client" → **Must call this tool**  
-  - "Convert client code to orm schema" → **Must call this tool**  
-
-#### 3. **Milvus Code Translation Between Languages (Lowest Priority)**  
-- **Trigger**:  
-  - Request contains **`translate to`** **AND** a **non-Python programming language** (e.g., `java`, `nodejs`, `go`).  
-  - **Must include** both `source_language` and `target_language` (e.g., "from python to java").  
-- **Action**:  
-  - Call `milvus_code_translate_helper` with:  
-    - `query` = list of API calls,  
-    - `source_language` = original language (default to `python` if not specified),  
-    - `target_language` = target language (e.g., `java`).  
-- **Example**:  
-  - "Translate milvus code to java" → **Must call this tool** (assumes source is Python)  
-  - "Convert python code to nodejs" → **Must call this tool**  
-
-#### **Critical Exclusion Rules**  
-1. **Do not call Tool 3 (`translation`) if**:  
-   - The request does not mention a **non-Python language** (e.g., only `pymilvus`/`python` is present).  
-   - Example: "Translate pymilvus code" → **Don't call Tool 3** (missing target language).  
-
-2. **Priority Enforcement**:  
-   - If a request matches **both Tool 1 and Tool 3** (e.g., "Generate code to java"), **force-trigger Tool 1** (code generation takes precedence over translation).  
-
-3. **Parameter Validation for Tool 3**:  
-   - If `target_language` is missing, **do not call Tool 3**; instead, use fallback to ask:  
-     *"Please specify the target programming language (e.g., 'to java' or 'to nodejs')"*.  
-
-#### **Fallback Rule**  
-- **When to Use**:  
-  - Request does not match any tool's trigger (e.g., "How does Milvus indexing work?").  
-  - Tool 3 is triggered but missing `target_language`.  
-- **Response**:  
-  *"Please clarify your request:  
-  1. Code Generation (e.g., 'Generate pymilvus code for search')  
-  2. ORM/Client Conversion (e.g., 'Convert orm to pymilvus')  
-  3. Language Translation (e.g., 'Translate to java')"*  
-
-If you meet the milvus code translation between different programming language task or convert between orm and milvus client, you must identify all API calls of the selected codes related to the Milvus SDK. The "query" argument should be a list of API call descriptions.
-
-Here is the examples:
-Example 1
-Context:
-```
-from pymilvus import MilvusClient, DataType
-
-CLUSTER_ENDPOINT = "http://localhost:19530"
-TOKEN = "root:Milvus"
-
-# 1. Set up a Milvus client
-client = MilvusClient(
-    uri=CLUSTER_ENDPOINT,
-    token=TOKEN 
-)
-
-# 2. Create a collection in quick setup mode
-client.create_collection(
-    collection_name="quick_setup",
-    dimension=5
-)
-
-res = client.get_load_state(
-    collection_name="quick_setup"
-)
-
-print(res)
-```
-Parsed arguments of tool using:
-["create_collection", "get_load_state"]
-
-Example 2
-Context:
-```
-from pymilvus import MilvusClient
-
-client = MilvusClient(uri="http://localhost:19530", token="root:Milvus")
-
-if not client.has_collection("my_collection"):
-    client.create_collection(collection_name="my_collection", dimension=128)
-
-client.insert(
-    collection_name="my_collection",
-    data=[{"vector": [0.1, 0.2, 0.3, 0.4, 0.5]}]
-)
-
-client.flush(["my_collection"])
-```
-Parsed arguments of tool using:
-["has_collection", "create_collection", "insert", "flush"]
-````
-
-Feel free to adjust or add more rules as needed for your workflow.
-
-
-## Available Tools
-
-The server provides the following tools:
-
-- `milvus-pypmilvus-code-generator`: Find related pymilvus code/documents to help generating code from user input in natural language
-  
-  - Parameters:
-    - `query`: User query for generating code
-  ![tool1](./assets/gif/tool1.gif)
-  
-- `milvus-orm-client-code-convertor`: Find related orm and pymilvus client code/documents to help converting orm code to pymilvus client (or vice versa)
-  
-  - Parameters:
-    - `query`: A string of Milvus API names in list format from user query and code context to translate between orm and milvus client
-  ![tool2](./assets/gif/tool2.gif)
-  
-- `milvus-code-translator`: Find related documents and code snippets in different programming languages for milvus code translation
-
-- Parameters:
-    - `query`: A string of Milvus API names in list format to translate from one programming language to another (e.g., ['create_collection', 'insert', 'search'])
-    - `source_language`: Source programming language (e.g., 'python', 'java', 'go', 'csharp', 'node', 'restful')
-    - `target_language`: Target programming language (e.g., 'python', 'java', 'go', 'csharp', 'node', 'restful')
-  ![tool3](./assets/gif/tool3.gif)
-
-> ⚠️ Note: You don't need to specify the tool name or parameters in the query. Just interact as you normally would when coding with LLM: state your requirements and select the relevant code context. MCP will automatically select the appropriate tool based on the query content and prepare corresponding parameters.
-
-## Docker
-You can also build and run milvus code helper MCP server with Docker
+You can also run the server using Docker:
 
 ### Build the Docker Image
-
 ```bash
 docker build -t milvus-code-helper .
 ```
 
-### Run the Docker Container
-
+### Run with FastMCP (Recommended)
 ```bash
-docker run -p <YOUR_HOST_IP>:<YOUR_HOST_PORT>:23333 -e OPENAI_API_KEY -e MILVUS_URI=<YOUR_MILVUS_URI> -e MILVUS_TOKEN=<YOUR_MILVUS_TOKEN> milvus-code-helper
+# First time run with document update
+docker run -p 8000:8000 \
+  -e OPENAI_API_KEY=your_openai_key \
+  -e MILVUS_URI=http://your-milvus-host:19530 \
+  -e MILVUS_TOKEN=your_milvus_token \
+  milvus-code-helper
+
+# Lightweight mode for subsequent runs
+docker run -p 8000:8000 \
+  -e OPENAI_API_KEY=your_openai_key \
+  -e MILVUS_URI=http://your-milvus-host:19530 \
+  -e MILVUS_TOKEN=your_milvus_token \
+  milvus-code-helper examples/fastmcp_server.py
 ```
 
-## Contribution
-Contributions are welcome! If you have ideas for improving the retrieve result, please submit a pull request or open an issue.
+## Configuration Options
+
+### Server Parameters
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `--milvus_uri` | Milvus server URI | `http://localhost:19530` |
+| `--milvus_token` | Milvus authentication token | `""` |
+| `--db_name` | Milvus database name | `default` |
+| `--host` | Server host address | `0.0.0.0` |
+| `--port` | Server port | `8000` |
+| `--path` | HTTP endpoint path | `/mcp` |
+| `--transport` | Transport protocol | `http` |
+
+### Transport Options
+
+- **`http`**: RESTful HTTP transport (recommended)
+- **`sse`**: Server-Sent Events transport
+- **`stdio`**: Standard input/output transport
+
+### Environment Variables
+
+- `OPENAI_API_KEY`: Required for document processing and embedding generation
+- `MILVUS_URI`: Alternative way to specify Milvus server URI
+- `MILVUS_TOKEN`: Alternative way to specify Milvus authentication token
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Connection refused**: Ensure Milvus is running and accessible
+2. **Authentication failed**: Check your Milvus token and credentials
+3. **Port conflicts**: Change the port using `--port` parameter
+4. **Missing documents**: Run the full server first to populate the database
+
+### Debug Mode
+
+Enable debug logging:
+```bash
+PYTHONPATH=src python -m logging --level DEBUG src/mcp_pymilvus_code_generate_helper/fastmcp_server.py
+```
+
+## Contributing
+
+Contributions are welcome! If you have ideas for improving the retrieval results or adding new features, please submit a pull request or open an issue.
 
 ## License
+
 This project is licensed under the MIT License.
