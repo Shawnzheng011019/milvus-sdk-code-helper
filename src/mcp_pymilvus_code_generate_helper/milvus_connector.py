@@ -13,14 +13,16 @@ logger = logging.getLogger("milvus-connector")
 class MilvusConnector:
     def __init__(
         self,
-        milvus_uri: str = "http://localhost:19530",
-        milvus_token: str = "",
-        db_name: str = "default",
+        milvus_uri: str = None,
+        milvus_token: str = None,
+        db_name: str = None,
     ):
         logger.debug("Initializing MilvusConnector")
-        self.milvus_uri = milvus_uri
-        self.milvus_token = milvus_token
-        self.db_name = db_name
+        self.milvus_uri = milvus_uri or os.getenv("MILVUS_URI") or "http://localhost:19530"
+        self.milvus_token = milvus_token or os.getenv("MILVUS_TOKEN") or ""
+        self.db_name = db_name or os.getenv("DB_NAME") or "default"
+
+        logger.info(f"Connecting to Milvus at: {self.milvus_uri}")
 
         self.milvus_client = MilvusClient(uri=milvus_uri, token=milvus_token, db_name=db_name)
         self.openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))

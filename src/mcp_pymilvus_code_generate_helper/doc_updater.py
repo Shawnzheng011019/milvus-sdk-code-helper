@@ -22,6 +22,7 @@ import sys
 import time
 from pathlib import Path
 from typing import List
+import re
 
 # Add scripts/load_doc to import path for document processing helpers
 
@@ -143,8 +144,57 @@ def _cleanup_collections(client: MilvusClient) -> None:
 # Embedding ingestion
 # ---------------------------------------------------------------------------
 
+_VERSION_DIRNAME_REGEX = re.compile(r"^v(\d+)\.(\d+)\.x$")
+
+def _parse_version_dirname(name: str) -> tuple[int, int] | None:
+    """Parse directory name like 'v2.5.x' to a version tuple.
+
+    Returns (major, minor) or None if not matched.
+    """
+    match = _VERSION_DIRNAME_REGEX.match(name)
+    if not match:
+        return None
+    try:
+        major = int(match.group(1))
+        minor = int(match.group(2))
+        return major, minor
+    except Exception:
+        return None
+
+def _find_latest_version_dir(parent: Path) -> Path | None:
+    """Scan subdirectories under parent and return the path of the latest version directory.
+
+    A valid version directory matches the pattern 'v<major>.<minor>.x'.
+    """
+    if not parent.exists() or not parent.is_dir():
+        logger.warning("Parent directory does not exist: %s", parent)
+        return None
+
+    latest_path: Path | None = None
+    latest_version: tuple[int, int] | None = None
+
+    for child in parent.iterdir():
+        if not child.is_dir():
+            continue
+        version_tuple = _parse_version_dirname(child.name)
+        if version_tuple is None:
+            continue
+        if latest_version is None or version_tuple > latest_version:
+            latest_version = version_tuple
+            latest_path = child
+
+    if latest_path is None:
+        logger.warning("No version directory found under %s", parent)
+    else:
+        logger.info("Selected latest version directory: %s", latest_path.name)
+    return latest_path
+
 def _embed_user_guide(base: Path, client: MilvusClient, uri: str, token: str):
-    path = base / "v2.5.x" / "site" / "en" / "userGuide"
+    latest = _find_latest_version_dir(base)
+    if latest is None:
+        logger.warning("Skip user guide embedding due to missing version directory under %s", base)
+        return
+    path = latest / "site" / "en" / "userGuide"
     if path.exists():
         logger.info("Processing user guide documents: %s", path)
         _run_with_capture(
@@ -160,7 +210,12 @@ def _embed_user_guide(base: Path, client: MilvusClient, uri: str, token: str):
 
 
 def _embed_orm_api(base: Path, client: MilvusClient, uri: str, token: str):
-    path = base / "API_Reference" / "pymilvus" / "v2.5.x" / "ORM"
+    pymilvus_base = base / "API_Reference" / "pymilvus"
+    latest = _find_latest_version_dir(pymilvus_base)
+    if latest is None:
+        logger.warning("Skip ORM API embedding due to missing version directory under %s", pymilvus_base)
+        return
+    path = latest / "ORM"
     if path.exists():
         logger.info("Processing ORM API documents: %s", path)
         _run_with_capture(
@@ -176,7 +231,12 @@ def _embed_orm_api(base: Path, client: MilvusClient, uri: str, token: str):
 
 
 def _embed_client_api(base: Path, client: MilvusClient, uri: str, token: str):
-    path = base / "API_Reference" / "pymilvus" / "v2.5.x" / "MilvusClient"
+    pymilvus_base = base / "API_Reference" / "pymilvus"
+    latest = _find_latest_version_dir(pymilvus_base)
+    if latest is None:
+        logger.warning("Skip MilvusClient API embedding due to missing version directory under %s", pymilvus_base)
+        return
+    path = latest / "MilvusClient"
     if path.exists():
         logger.info("Processing MilvusClient API documents: %s", path)
         _run_with_capture(

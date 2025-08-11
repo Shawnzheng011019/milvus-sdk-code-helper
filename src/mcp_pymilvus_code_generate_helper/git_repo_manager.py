@@ -246,17 +246,42 @@ class GitRepoManager:
         self.last_commit_hash = await self._get_current_commit_hash()
     
     def get_docs_paths(self) -> dict:
-        """Get the paths to different documentation directories"""
+        """Get the paths to different documentation directories by selecting latest versions."""
+        version_regex = re.compile(r"^v(\d+)\.(\d+)\.x$")
+
+        def _latest_subdir(parent: Path) -> Path | None:
+            if not parent.exists():
+                return None
+            latest: tuple[int, int] | None = None
+            latest_path: Path | None = None
+            for child in parent.iterdir():
+                if not child.is_dir():
+                    continue
+                m = version_regex.match(child.name)
+                if not m:
+                    continue
+                ver = (int(m.group(1)), int(m.group(2)))
+                if latest is None or ver > latest:
+                    latest = ver
+                    latest_path = child
+            return latest_path
+
         base_path = self.local_path
+        user_guide_version = _latest_subdir(base_path)
+        pymilvus_version = _latest_subdir(base_path / "API_Reference" / "pymilvus")
+
         return {
-            "user_guide": base_path / "v2.5.x" / "site" / "en" / "userGuide",
-            "orm_api": base_path / "API_Reference" / "pymilvus" / "v2.5.x" / "ORM",
-            "client_api": base_path / "API_Reference" / "pymilvus" / "v2.5.x" / "MilvusClient",
+            "user_guide": (user_guide_version / "site" / "en" / "userGuide") if user_guide_version else None,
+            "orm_api": (pymilvus_version / "ORM") if pymilvus_version else None,
+            "client_api": (pymilvus_version / "MilvusClient") if pymilvus_version else None,
             "multi_lang_api": base_path / "API_Reference"
         }
     
     def is_repo_ready(self) -> bool:
         """Check if the repository is ready for use"""
-        return (self.local_path.exists() and 
-                (self.local_path / ".git").exists() and
-                any(self.get_docs_paths().values()))
+        docs = self.get_docs_paths()
+        return (
+            self.local_path.exists()
+            and (self.local_path / ".git").exists()
+            and any(p is not None and Path(p).exists() for p in docs.values())
+        )

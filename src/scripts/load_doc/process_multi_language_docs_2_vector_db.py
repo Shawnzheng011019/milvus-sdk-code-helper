@@ -1,5 +1,6 @@
 import argparse
 import os
+import re
 from typing import Dict, List, Optional
 import sys
 from pathlib import Path
@@ -54,6 +55,40 @@ class MultiLangDocsProcessor:
         except Exception as e:
             print(f"Error generating embedding after all retries: {e}")
             return None
+
+    @staticmethod
+    def _parse_version_dirname(name: str) -> Optional[tuple[int, int]]:
+        pattern = re.compile(r"^v(\d+)\.(\d+)\.x$")
+        m = pattern.match(name)
+        if not m:
+            return None
+        try:
+            return int(m.group(1)), int(m.group(2))
+        except Exception:
+            return None
+
+    @staticmethod
+    def _find_latest_version_dir(parent: str) -> Optional[str]:
+        if not os.path.isdir(parent):
+            print(f"Parent directory does not exist: {parent}")
+            return None
+        latest_name: Optional[str] = None
+        latest_ver: Optional[tuple[int, int]] = None
+        for child in os.listdir(parent):
+            full = os.path.join(parent, child)
+            if not os.path.isdir(full):
+                continue
+            ver = MultiLangDocsProcessor._parse_version_dirname(child)
+            if ver is None:
+                continue
+            if latest_ver is None or ver > latest_ver:
+                latest_ver = ver
+                latest_name = child
+        if latest_name is None:
+            print(f"No version directory found under {parent}")
+            return None
+        print(f"Selected latest version under {parent}: {latest_name}")
+        return os.path.join(parent, latest_name)
 
     def normalize_filename(self, python_filename: str, target_lang: str) -> str:
         """Convert Python filename format to target language format"""
@@ -303,15 +338,37 @@ def main():
 
     args = parser.parse_args()
 
-    # Set up base directories
-    base_dirs = {
-        "python": os.path.join(args.base_dir, "pymilvus/v2.5.x/MilvusClient"),
-        "node": os.path.join(args.base_dir, "milvus-sdk-node/v2.5.x"),
-        "java": os.path.join(args.base_dir, "milvus-sdk-java/v2.5.x/v2"),
-        "go": os.path.join(args.base_dir, "milvus-sdk-go/v2.4.x"),
-        "csharp": os.path.join(args.base_dir, "milvus-sdk-csharp/v2.2.x"),
-        "restful": os.path.join(args.base_dir, "milvus-restful/v2.4.x/v2"),
-    }
+    # Set up base directories dynamically by selecting latest version directories
+    python_root = os.path.join(args.base_dir, "pymilvus")
+    python_latest = MultiLangDocsProcessor._find_latest_version_dir(python_root)
+    node_root = os.path.join(args.base_dir, "milvus-sdk-node")
+    node_latest = MultiLangDocsProcessor._find_latest_version_dir(node_root)
+    java_root = os.path.join(args.base_dir, "milvus-sdk-java")
+    java_latest = MultiLangDocsProcessor._find_latest_version_dir(java_root)
+    go_root = os.path.join(args.base_dir, "milvus-sdk-go")
+    go_latest = MultiLangDocsProcessor._find_latest_version_dir(go_root)
+    csharp_root = os.path.join(args.base_dir, "milvus-sdk-csharp")
+    csharp_latest = MultiLangDocsProcessor._find_latest_version_dir(csharp_root)
+    restful_root = os.path.join(args.base_dir, "milvus-restful")
+    restful_latest = MultiLangDocsProcessor._find_latest_version_dir(restful_root)
+
+    base_dirs = {}
+    if python_latest:
+        base_dirs["python"] = os.path.join(python_latest, "MilvusClient")
+    if node_latest:
+        base_dirs["node"] = node_latest
+    if java_latest:
+        base_dirs["java"] = os.path.join(java_latest, "v2")
+    if go_latest:
+        base_dirs["go"] = go_latest
+    if csharp_latest:
+        base_dirs["csharp"] = csharp_latest
+    if restful_latest:
+        base_dirs["restful"] = os.path.join(restful_latest, "v2")
+
+    if "python" not in base_dirs:
+        print("Python docs base directory not found. Exiting.")
+        return
 
     # Process documents and generate embeddings
     processor = MultiLangDocsProcessor(base_dirs)
