@@ -1,7 +1,7 @@
-# mcp-pymilvus-code-generate-helper
+# milvus-sdk-code-helper
 > A Model Context Protocol server that retrieves relevant code snippets or documents to help generating pymilvus code.
 
-![Architecture](./assets/pic/pymilvus-code-generate-helper-arch.png)
+![Architecture](./assets/pic/milvus-sdk-code-helper-arch.png)
 
 ![Example](./assets/gif/example.gif)
 
@@ -63,6 +63,11 @@ This lightweight version:
 uv run examples/fastmcp_server.py --milvus_uri http://your-server:19530 --host 0.0.0.0 --port 8080 --transport http
 ```
 
+## Key Features
+
+- Automatically fetches and indexes the latest Milvus documentation version (可以获取最新文档版本)
+- Weekly auto-refresh via a lightweight background scheduler
+
 ### Usage with Cursor
 
 1. Go to `Cursor` > `Settings` > `MCP`
@@ -73,7 +78,7 @@ uv run examples/fastmcp_server.py --milvus_uri http://your-server:19530 --host 0
 ```json
 {
   "mcpServers": {
-    "pymilvus-code-generate-helper": {
+    "milvus-sdk-code-helper": {
       "url": "http://localhost:8000/mcp"
     }
   }
@@ -84,7 +89,7 @@ uv run examples/fastmcp_server.py --milvus_uri http://your-server:19530 --host 0
 ```json
 {
   "mcpServers": {
-    "pymilvus-code-generate-helper": {
+    "milvus-sdk-code-helper": {
       "url": "http://localhost:8000"
     }
   }
@@ -95,11 +100,11 @@ uv run examples/fastmcp_server.py --milvus_uri http://your-server:19530 --host 0
 ```json
 {
   "mcpServers": {
-    "pymilvus-code-generate-helper": {
+    "milvus-sdk-code-helper": {
       "command": "/PATH/TO/uv",
       "args": [
         "--directory",
-        "/path/to/mcp-pymilvus-code-generate-helper",
+        "/path/to/milvus-sdk-code-helper",
         "run",
         "examples/fastmcp_server.py",
         "--transport",
@@ -127,7 +132,7 @@ uv run examples/fastmcp_server.py --milvus_uri http://your-server:19530 --host 0
 ```json
 {
   "mcpServers": {
-    "pymilvus-code-generate-helper": {
+    "milvus-sdk-code-helper": {
       "url": "http://localhost:8000/mcp"
     }
   }
@@ -138,11 +143,11 @@ uv run examples/fastmcp_server.py --milvus_uri http://your-server:19530 --host 0
 ```json
 {
   "mcpServers": {
-    "pymilvus-code-generate-helper": {
+    "milvus-sdk-code-helper": {
       "command": "/PATH/TO/uv",
       "args": [
         "--directory",
-        "/path/to/mcp-pymilvus-code-generate-helper",
+        "/path/to/milvus-sdk-code-helper",
         "run",
         "examples/fastmcp_server.py",
         "--transport",
@@ -161,6 +166,68 @@ uv run examples/fastmcp_server.py --milvus_uri http://your-server:19530 --host 0
 4. Restart Claude Desktop
 
 > ⚠️ **Note**: Remember to set the `OPENAI_API_KEY` environment variable when using STDIO transport.
+
+## Usage with Claude Code (VS Code)
+
+### Using CLI (Recommended)
+
+```bash
+# HTTP (recommended)
+claude mcp add --transport http milvus-sdk-code-helper http://localhost:8000/mcp
+
+# SSE
+claude mcp add --transport sse milvus-sdk-code-helper http://localhost:8000
+
+# STDIO
+claude mcp add milvus-sdk-code-helper /ABS/PATH/TO/uv -- \
+  --directory /ABS/PATH/TO/milvus-sdk-code-helper \
+  run examples/fastmcp_server.py --transport stdio --milvus_uri http://localhost:19530
+```
+
+### Manual Configuration
+
+- Global (`~/.claude.json`) – HTTP transport
+
+```json
+{
+  "mcpServers": {
+    "milvus-sdk-code-helper": {
+      "type": "http",
+      "url": "http://localhost:8000/mcp"
+    }
+  }
+}
+```
+
+- Project (`.mcp.json` at project root) – STDIO transport
+
+```json
+{
+  "mcpServers": {
+    "milvus-sdk-code-helper": {
+      "type": "stdio",
+      "command": "/ABS/PATH/TO/uv",
+      "args": [
+        "--directory",
+        "/ABS/PATH/TO/milvus-sdk-code-helper",
+        "run",
+        "examples/fastmcp_server.py",
+        "--transport",
+        "stdio",
+        "--milvus_uri",
+        "http://localhost:19530"
+      ],
+      "env": {
+        "OPENAI_API_KEY": "YOUR_OPENAI_API_KEY"
+      }
+    }
+  }
+}
+```
+
+## Usage with Gemini CLI (as an MCP server)
+
+You can add a Gemini MCP server alongside this project in the same client. This is optional and independent of this server.
 
 ## Available Tools
 
@@ -212,7 +279,7 @@ uv run src/mcp_pymilvus_code_generate_helper/sse_server.py --milvus_uri http://l
 # Cursor configuration for SSE
 {
   "mcpServers": {
-    "pymilvus-code-generate-helper": {
+    "milvus-sdk-code-helper": {
       "url": "http://localhost:23333/milvus-code-helper/sse"
     }
   }
@@ -227,11 +294,11 @@ uv run src/mcp_pymilvus_code_generate_helper/stdio_server.py --milvus_uri http:/
 # Cursor configuration for STDIO
 {
   "mcpServers": {
-    "pymilvus-code-generate-helper": {
+    "milvus-sdk-code-helper": {
       "command": "/PATH/TO/uv",
       "args": [
         "--directory",
-        "/path/to/mcp-pymilvus-code-generate-helper",
+        "/path/to/milvus-sdk-code-helper",
         "run",
         "src/mcp_pymilvus_code_generate_helper/stdio_server.py",
         "--milvus_uri",

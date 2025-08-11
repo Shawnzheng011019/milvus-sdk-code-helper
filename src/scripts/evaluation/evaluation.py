@@ -104,7 +104,7 @@ async def evaluate(
     from huggingface_hub import hf_hub_download
 
     file_path = hf_hub_download(
-        repo_id="brcarry/mcp-pymilvus-code-generate-helper-test-dataset",
+        repo_id="brcarry/milvus-sdk-code-helper-test-dataset",
         filename="test_dataset.json",
         repo_type="dataset",
     )

@@ -29,7 +29,7 @@ def main():
         milvus_uri=args.milvus_uri, milvus_token=args.milvus_token, db_name=args.db_name
     )
 
-    server = Server("stdio-mcp-pymilvus-code-generate-helper-server")
+    server = Server("stdio-milvus-sdk-code-helper-server")
 
     @server.list_tools()
     async def list_tools() -> list[Tool]:
