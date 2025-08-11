@@ -24,4 +24,4 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 
 # Start the FastMCP server (all credentials are provided via environment variables at runtime)
-CMD ["sh", "-c", "uv run src/mcp_pymilvus_code_generate_helper/fastmcp_server.py --milvus_uri \"$MILVUS_URI\" --milvus_token \"$MILVUS_TOKEN\""]
+CMD ["sh", "-c", "uv run src/milvus-sdk-code-helper/fastmcp_server.py --milvus_uri \"$MILVUS_URI\" --milvus_token \"$MILVUS_TOKEN\""]
